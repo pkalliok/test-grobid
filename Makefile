@@ -10,7 +10,12 @@ stop:
 	docker rm -f grobid-run-1
 	rm run-grobid-stamp
 
-sarjat2019/fetch-stamp: sarjat2019/sarjat2019.seq
-	./fetch.py $< sarjat2019/pdf/
+sarjat2018/fetch-stamp: sarjat2018/sarjat2018.seq
+	./fetch.py $< sarjat2018/pdf/
 	touch $@
+
+sarjat2018/analyse-stamp: sarjat2018/fetch-stamp run-grobid-stamp
+	python3 grobid-client.py --config grobid-client-config.json \
+		--input sarjat2018/pdf/ --output sarjat2018/tei/ \
+		processHeaderDocument
 
