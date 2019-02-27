@@ -15,6 +15,7 @@ sarjat2018/fetch-stamp: sarjat2018/sarjat2018.seq
 	touch $@
 
 sarjat2018/analyse-stamp: sarjat2018/fetch-stamp run-grobid-stamp
+	mkdir -p sarjat2018/tei
 	python3 grobid-client.py --config grobid-client-config.json \
 		--input sarjat2018/pdf/ --output sarjat2018/tei/ \
 		processHeaderDocument
