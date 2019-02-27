@@ -4,6 +4,7 @@ from functools import lru_cache
 from itertools import groupby
 from lxml import etree
 from glob import glob
+from Levenshtein import distance
 import re
 
 @lru_cache(maxsize=100)
@@ -40,12 +41,14 @@ def metadata_from_dir(dirname):
             for fn in glob('{}/*.xml'.format(dirname)))
 
 seq_rules = [
-    (re.compile(r'^([0-9]{9}) 24[56].. L .*\$\$a([^$]+).*\$\$b([^$]+)'),
+    (re.compile(r'^([0-9]{9}) 245.. L .*\$\$a([^$]+).*\$\$b([^$]+)'),
         lambda m: [(m.group(1), 'title', m.group(2)),
                     (m.group(1), 'title', m.group(3))]),
-    (re.compile(r'^([0-9]{9}) 24[56].. L .*\$\$a([^$]+)'),
+    (re.compile(r'^([0-9]{9}) 245.. L .*\$\$a([^$]+)'),
         lambda m: [(m.group(1), 'title', m.group(2))]),
-    (re.compile(r'^([0-9]{9}) [17]10.. L .*\$\$a([^$]+)'),
+    (re.compile(r'^([0-9]{9}) 1[10]0.. L .*\$\$a([^$,]+), ([^$,]+)'),
+        lambda m: [(m.group(1), 'authors', m.group(3) + ' ' + m.group(2))]),
+    (re.compile(r'^([0-9]{9}) 1[10]0.. L .*\$\$a([^$]+)'),
         lambda m: [(m.group(1), 'authors', m.group(2))]),
 ]
 
@@ -68,4 +71,35 @@ def metadata_from_seq(filename):
                             for triplet in parse_seq_line(line)], key=keyfn)
     return dict((id, metadata_from_triplets(tr))
             for id, tr in groupby(triplets, keyfn))
+
+def md_evaluate(rec1, rec2):
+    title1 = (rec1.get('title', '') or '').lower()
+    title2 = (rec2.get('title', '') or '').lower()
+    dist = distance(title1, title2)
+    return (dist/max(1, len(title1), len(title2)), title1, title2)
+
+def compare_metadata(md1, md2):
+    doc_ids = set(md1.keys()).union(md2.keys())
+    md_pairs = [(md1.get(id, {}), md2.get(id, {})) for id in doc_ids]
+    return sorted(md_evaluate(rec1, rec2) for rec1, rec2 in md_pairs)
+
+def load_and_compare(input_dir):
+    seqfile = glob('{}/*.seq'.format(input_dir))[0]
+    teidir = '{}/tei'.format(input_dir)
+    return compare_metadata(metadata_from_seq(seqfile),
+                            metadata_from_dir(teidir))
+
+def categorise_evaluation(eval):
+    score = eval[0]
+    if score < 0.13: return 'correct'
+    if score < 0.65: return 'has changes'
+    if score < 0.99: return 'incorrect'
+    return 'missing'
+
+if __name__ == '__main__':
+    import sys
+    diffs = load_and_compare(sys.argv[1])
+    for l in diffs: print(l)
+    for cat, inst in groupby(diffs, categorise_evaluation):
+        print(cat, ':', len(list(inst)), 'of', len(diffs))
 
