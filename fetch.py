@@ -33,7 +33,7 @@ def parse_html(recid, url, resp):
         fetch(recid, meta['content'])
     else:
         print("no meta found")
-    
+
 def store_pdf(recid, url, resp):
     if not os.path.exists(OUTDIR):
         os.mkdir(OUTDIR)
@@ -57,7 +57,7 @@ def fetch(recid, url):
         parse_html(recid, url, resp)
     elif 'application/pdf' in ctype:
         store_pdf(recid, url, resp)
-   
+
 
 def read_file(fn):
     with open(fn) as seq:
@@ -75,6 +75,9 @@ def read_file(fn):
             url = subfields['u'].split()[0]
             if not (url.startswith('http://') or url.startswith('https://')):
                 continue
+            if os.path.exists(os.path.join(OUTDIR, recid + ".pdf")):
+                print("{} already exists, skipping".format(recid))
+                continue
             fetch(recid,url)
-            
+
 read_file(INPUT)
